@@ -91,6 +91,21 @@ register(
     max_episode_steps=500,
 )
 
+register(
+    id='Pendulum2-v0',
+    entry_point='gym.envs.classic_control:Pendulum2Env',
+    reward_threshold=-100.0,
+    max_episode_steps=500,
+)
+
+
+register(
+    id='Pendulum3-v0',
+    entry_point='gym.envs.classic_control:Pendulum3Env',
+    reward_threshold=-100.0,
+    max_episode_steps=500,
+)
+
 # Box2d
 # ----------------------------------------
 
