@@ -152,7 +152,7 @@ for i in tqdm.trange(sim_length):
     th, _, _, _ = env.step(actions)
     negK = controller.compute_lqr(actions, discrete=False)
     state = np.array([env.th[0], env.th[1], env.u[0], env.u[1]])
-    actions = np.matmul(negK, state - [np.pi, 0, 0, 0]) # put angular goal here
+    actions = np.matmul(negK, state - [0, 0, 0, 0]) # put angular goal here
     actions = np.clip(-env.max_torque, env.max_torque, actions)
 
 #env.animate(skip=1)

@@ -113,15 +113,16 @@ class Pendulum2Env(gym.Env):
             plt.plot([x1, x2], [y1, y2], color='black', markersize=10, markerfacecolor='red', marker = "o")
 
             limits = self.L*2.2
-            plt.xlim([-limits, limits])
             plt.ylim([-limits, limits])
+            plt.xlim([-limits, limits])
+            plt.gca().set_aspect('equal')     
 
             xtext, ytest = 0.1*limits, 0.8*limits
             plt.text(xtext, ytest, "th1:%0.1f, th2:%0.1f, u1:%0.1f, u2:%0.1f" %(th[0], th[1], u[0], u[1]))
             xtext, ytest = 0.1*limits, 0.65*limits
             plt.text(xtext, ytest, "actions=(%0.2f, %0.2f), reward:%0.2f" %(actions[0], actions[1], reward))
             plt.draw()
-            plt.pause(0.01)
+            plt.pause(0.1)
         plt.close()
 
     def animate(self, skip=1):
