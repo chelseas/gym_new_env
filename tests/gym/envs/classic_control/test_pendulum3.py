@@ -4,6 +4,7 @@ import scipy
 import sympy as sym
 from sympy import sin, cos
 import tqdm
+import colored_traceback.always
 
 
 class ControllerPendulum2():
@@ -83,6 +84,18 @@ class ControllerPendulum2():
         self.R = sym.eye(2,2)#*self.env.dt*self.env.N
         self.vars = [x1, x2, u1, u2, T1, T2]
 
+    def riccatti_cheese(self, A,B,Q,R):
+        P = np.zeros((B.T.shape[1], B.shape[0]))
+        F = np.linalg.solve(-(R + B.T@P@B), B.T@P@A)
+        P = Q + F.T@R@F + (A + B@F).T@P@(A+B@F)
+        Fnew = np.linalg.solve(-(R + B.T@P@B), B.T@P@A)
+        while np.linalg.norm(Fnew - F, 2) > 1e-4 :
+            F = Fnew;
+            P = Q + F.T@R@F + (A + B@F).T@P@(A+B@F)
+            Fnew = np.linalg.solve(-(R + B.T@P@B), B.T@P@A)
+        return P,Fnew
+
+
     def compute_lqr(self, old_actions, discrete=True):
         """
         Compute the discrete-time LQR controller.
@@ -97,25 +110,26 @@ class ControllerPendulum2():
                     (vars[5], old_actions[1])] # setting T2
         Aval = self.A.subs(sub_list)
         Bval = self.B.subs(sub_list)
-        a = np.array(Aval).astype(np.float64)
-        b = np.array(Bval).astype(np.float64)
+        a = np.array(Aval).astype(np.float64)*self.env.dt*self.env.N
+        b = np.array(Bval).astype(np.float64)*self.env.dt*self.env.N
         r = np.array(self.R).astype(np.float64)
         q = np.array(self.Q).astype(np.float64)
         a, b, q, r = map(np.atleast_2d, (a, b, q, r))
-        p = scipy.linalg.solve_discrete_are(a, b, q, r)
+        p,negk = self.riccatti_cheese(a,b,q,r)
+        #p = scipy.linalg.solve_discrete_are(a, b, q, r)
 
         #print(a)
         # LQR gain
-        if not discrete:
-            k = np.linalg.solve(r, b.T.dot(p))
-        else:
-            # k = (b.T * p * b + r)^-1 * (b.T * p * a)
-            bp = b.T.dot(p)
-            tmp1 = bp.dot(b)
-            tmp1 += r
-            tmp2 = bp.dot(a)
-            k = np.linalg.solve(tmp1, tmp2)
-        return k
+        # if not discrete:
+        #     k = np.linalg.solve(r, b.T.dot(p))
+        # else:
+        #     # k = (b.T * p * b + r)^-1 * (b.T * p * a)
+        #     bp = b.T.dot(p)
+        #     tmp1 = bp.dot(b)
+        #     tmp1 += r
+        #     tmp2 = bp.dot(a)
+        #     k = np.linalg.solve(tmp1, tmp2)
+        return negk
 
 
 def angle_normalize(x):
@@ -128,17 +142,17 @@ def angle_from_vertical(x):
     return min(x1, x2)
 
 
-env = gym.make("Pendulum2-v0")
+env = gym.make("Pendulum2-v0", dt=.01, N=1, th_0 = [10*np.pi/180, 10*np.pi/180])
 env.reset()
 controller = ControllerPendulum2(env, method=1)
-N = 10000
+sim_length = 1000
 actions = [0, 0]
 
-for i in tqdm.trange(N):
+for i in tqdm.trange(sim_length):
     th, _, _, _ = env.step(actions)
-    K = controller.compute_lqr(actions, discrete=False)
+    negK = controller.compute_lqr(actions, discrete=False)
     state = np.array([env.th[0], env.th[1], env.u[0], env.u[1]])
-    actions = np.matmul(-K, state)
+    actions = np.matmul(negK, state - [np.pi, 0, 0, 0]) # put angular goal here
     actions = np.clip(-env.max_torque, env.max_torque, actions)
 
 #env.animate(skip=1)
